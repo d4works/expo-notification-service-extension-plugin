@@ -215,6 +215,35 @@ const withOneSignalXcodeProject: ConfigPlugin<NSEPluginProps> = (config, props) 
   })
 }
 
+const withNotificationServicePodfile: ConfigPlugin<NSEPluginProps> = (config, props) => {
+  return withDangerousMod(config, [
+    'ios',
+    async (config) => {
+      const podfilePath = path.join(config.modRequest.projectRoot, 'ios', 'Podfile');
+      const podfileContent = await fs.promises.readFile(podfilePath, 'utf-8');
+
+      if (podfileContent.includes("target 'NotificationServiceExtension' do")) {
+        console.log("NotificationServiceExtension target already exists in Podfile. Skipping...");
+        return config;
+      }
+
+      const insertion = `
+  
+target 'NotificationServiceExtension' do
+  use_frameworks! :linkage => :static
+  pod 'Firebase/Messaging'
+end
+`;
+
+      const newPodfileContent = podfileContent + insertion;
+
+      await fs.promises.writeFile(podfilePath, newPodfileContent);
+
+      return config;
+    }
+  ]);
+};
+
 export const withServiceExtensionIos: ConfigPlugin<NSEPluginProps> = (config, props) => {
   config = withAppEnvironment(config, props);
   config = withRemoteNotificationsPermissions(config, props);
@@ -222,5 +251,6 @@ export const withServiceExtensionIos: ConfigPlugin<NSEPluginProps> = (config, pr
   config = withOneSignalNSE(config, props)
   config = withOneSignalXcodeProject(config, props)
   config = withEasManagedCredentials(config, props);
+  config = withNotificationServicePodfile(config, props);
   return config;
 };
